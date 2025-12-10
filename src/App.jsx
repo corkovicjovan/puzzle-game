@@ -3,21 +3,28 @@ import HomeScreen from './components/HomeScreen'
 import GameScreen from './components/GameScreen'
 import ImageCropper from './components/ImageCropper'
 import InstallButton from './components/InstallButton'
+import UpdatePrompt from './components/UpdatePrompt'
+import { usePersistedSettings } from './hooks/usePersistedState'
+import { useNetworkStatus } from './hooks/useNetworkStatus'
 import './index.css'
 
-// Auto-discover all images from src/assets/puzzles/
-// Just drop images in that folder and they'll be included automatically
-const puzzleImages = import.meta.glob('./assets/puzzles/*.{png,jpg,jpeg,webp}', {
+// Auto-discover all optimized images from src/assets/puzzles-optimized/
+// Run `npm run optimize-images` to generate optimized WebP versions
+const puzzleImages = import.meta.glob('./assets/puzzles-optimized/*.webp', {
   eager: true,
   import: 'default',
 })
 const SAMPLE_IMAGES = Object.values(puzzleImages)
 
 function App() {
+  const isOnline = useNetworkStatus()
   const [screen, setScreen] = useState('home')
-  const [gameSettings, setGameSettings] = useState({
+  const [persistedSettings, setPersistedSettings] = usePersistedSettings({
     gridSize: 4,
     showHint: true,
+  })
+  const [gameSettings, setGameSettings] = useState({
+    ...persistedSettings,
     image: null,
   })
   const [customImage, setCustomImage] = useState(null)
@@ -30,9 +37,15 @@ function App() {
       imageToUse = SAMPLE_IMAGES[randomIndex]
     }
 
+    // Persist settings (without image)
+    setPersistedSettings({
+      gridSize: settings.gridSize,
+      showHint: settings.showHint,
+    })
+
     setGameSettings({ ...settings, image: imageToUse })
     setScreen('game')
-  }, [])
+  }, [setPersistedSettings])
 
   const openCropper = useCallback((imageData) => {
     setCustomImage(imageData)
@@ -56,7 +69,16 @@ function App() {
 
   return (
     <div className="app">
+      <UpdatePrompt />
       <InstallButton />
+
+      {!isOnline && (
+        <div className="offline-indicator">
+          <span className="offline-dot"></span>
+          <span>Offline</span>
+        </div>
+      )}
+
       {screen === 'home' && (
         <HomeScreen
           onStartGame={startGame}

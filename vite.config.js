@@ -6,8 +6,8 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      registerType: 'prompt',
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg', 'offline.html'],
       manifest: {
         name: 'Puzzle Fun - Jigsaw Game',
         short_name: 'Puzzle Fun',
@@ -18,6 +18,7 @@ export default defineConfig({
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
+        categories: ['games', 'kids', 'education'],
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -38,16 +39,18 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp}'],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit for puzzle images
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        navigateFallback: '/offline.html',
+        navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/picsum\.photos\/.*/i,
+            urlPattern: /\.(?:png|jpg|jpeg|webp)$/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'puzzle-images',
               expiration: {
-                maxEntries: 100,
+                maxEntries: 50,
                 maxAgeSeconds: 60 * 60 * 24 * 30
               }
             }

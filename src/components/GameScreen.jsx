@@ -2,6 +2,19 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { generatePuzzleEdges, generatePiecePath, generateGridLinesPath, shuffleArray } from '../utils/puzzleUtils'
 import Confetti from './Confetti'
 
+// Shared AudioContext for sound effects (reused across snaps)
+let sharedAudioContext = null
+function getAudioContext() {
+  if (!sharedAudioContext) {
+    try {
+      sharedAudioContext = new (window.AudioContext || window.webkitAudioContext)()
+    } catch (e) {
+      // Audio not supported
+    }
+  }
+  return sharedAudioContext
+}
+
 function GameScreen({ settings, onBack, onNextPuzzle }) {
   const { gridSize, showHint, image } = settings
   const [pieces, setPieces] = useState([])
@@ -16,6 +29,10 @@ function GameScreen({ settings, onBack, onNextPuzzle }) {
   
   const boardRef = useRef(null)
   const dragOffsetRef = useRef({ x: 0, y: 0 })
+  const boardRectRef = useRef(null)
+  const rafRef = useRef(null)
+  const pendingMoveRef = useRef(null)
+  const pathCache = useRef(new Map())
   
   const pieceSize = boardSize / gridSize
   
@@ -55,7 +72,21 @@ function GameScreen({ settings, onBack, onNextPuzzle }) {
     }
     return newSlots
   }, [])
-  
+
+  // Get board position (cached for performance)
+  const getBoardRect = useCallback(() => {
+    if (!boardRef.current) return null
+    if (!boardRectRef.current) {
+      boardRectRef.current = boardRef.current.getBoundingClientRect()
+    }
+    return boardRectRef.current
+  }, [])
+
+  // Invalidate board rect cache on resize
+  const invalidateBoardRect = useCallback(() => {
+    boardRectRef.current = null
+  }, [])
+
   // Calculate board size based on viewport
   useEffect(() => {
     const updateSize = () => {
@@ -67,18 +98,22 @@ function GameScreen({ settings, onBack, onNextPuzzle }) {
       const availableWidth = vw - 40
       const size = Math.min(availableWidth, availableHeight, 450)
       setBoardSize(size)
+      // Invalidate cached board rect on resize
+      invalidateBoardRect()
     }
 
     updateSize()
     window.addEventListener('resize', updateSize)
+    window.addEventListener('scroll', invalidateBoardRect, true)
     // Also listen to visualViewport resize for mobile browsers
     window.visualViewport?.addEventListener('resize', updateSize)
     return () => {
       window.removeEventListener('resize', updateSize)
+      window.removeEventListener('scroll', invalidateBoardRect, true)
       window.visualViewport?.removeEventListener('resize', updateSize)
     }
-  }, [])
-  
+  }, [invalidateBoardRect])
+
   // Check for win condition
   useEffect(() => {
     const totalPieces = gridSize * gridSize
@@ -86,12 +121,6 @@ function GameScreen({ settings, onBack, onNextPuzzle }) {
       setIsComplete(true)
     }
   }, [placedPieces, gridSize])
-  
-  // Get board position
-  const getBoardRect = useCallback(() => {
-    if (!boardRef.current) return null
-    return boardRef.current.getBoundingClientRect()
-  }, [])
   
   // Check if piece is near correct position (forgiving for kids!)
   const checkSnapPosition = useCallback((x, y, piece) => {
@@ -117,64 +146,57 @@ function GameScreen({ settings, onBack, onNextPuzzle }) {
     return null
   }, [getBoardRect, pieceSize])
   
-  // Determine which cell we're hovering over
-  const getHoverCell = useCallback((x, y) => {
-    const boardRect = getBoardRect()
-    if (!boardRect) return null
-    
-    const relX = x - boardRect.left
-    const relY = y - boardRect.top
-    
-    if (relX < 0 || relX > boardSize || relY < 0 || relY > boardSize) {
-      return null
-    }
-    
-    const col = Math.floor(relX / pieceSize)
-    const row = Math.floor(relY / pieceSize)
-    
-    if (row >= 0 && row < gridSize && col >= 0 && col < gridSize) {
-      return { row, col }
-    }
-    
-    return null
-  }, [getBoardRect, boardSize, pieceSize, gridSize])
   
   // Handle drag start
   const handleDragStart = useCallback((e, piece) => {
     e.preventDefault()
-    
+
     const clientX = e.touches ? e.touches[0].clientX : e.clientX
     const clientY = e.touches ? e.touches[0].clientY : e.clientY
-    
+
     const rect = e.currentTarget.getBoundingClientRect()
     dragOffsetRef.current = {
       x: clientX - rect.left - rect.width / 2,
       y: clientY - rect.top - rect.height / 2,
     }
-    
+
+    // Force fresh measurement on drag start
+    invalidateBoardRect()
+
     setDraggingPiece(piece)
     setDragPos({ x: clientX, y: clientY })
-  }, [])
+  }, [invalidateBoardRect])
   
-  // Handle drag move
+  // Handle drag move (RAF throttled for performance)
   const handleDragMove = useCallback((e) => {
     if (!draggingPiece) return
-    
+
     const clientX = e.touches ? e.touches[0].clientX : e.clientX
     const clientY = e.touches ? e.touches[0].clientY : e.clientY
-    
-    setDragPos({ x: clientX, y: clientY })
-    
-    // Check if we should highlight a cell
-    const hoverCell = getHoverCell(clientX, clientY)
-    const correctPos = checkSnapPosition(clientX, clientY, draggingPiece)
-    
-    if (correctPos && !placedPieces[`${correctPos.row}-${correctPos.col}`]) {
-      setHighlightCell(correctPos)
-    } else {
-      setHighlightCell(null)
+
+    // Store pending position
+    pendingMoveRef.current = { x: clientX, y: clientY }
+
+    // Only schedule RAF if not already pending
+    if (!rafRef.current) {
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null
+        const pos = pendingMoveRef.current
+        if (!pos) return
+
+        setDragPos(pos)
+
+        // Check if we should highlight a cell
+        const correctPos = checkSnapPosition(pos.x, pos.y, draggingPiece)
+
+        if (correctPos && !placedPieces[`${correctPos.row}-${correctPos.col}`]) {
+          setHighlightCell(correctPos)
+        } else {
+          setHighlightCell(null)
+        }
+      })
     }
-  }, [draggingPiece, getHoverCell, checkSnapPosition, placedPieces])
+  }, [draggingPiece, checkSnapPosition, placedPieces])
   
   // Handle drag end
   const handleDragEnd = useCallback(() => {
@@ -218,27 +240,38 @@ function GameScreen({ settings, onBack, onNextPuzzle }) {
       window.addEventListener('mouseup', handleDragEnd)
       window.addEventListener('touchmove', handleDragMove, { passive: false })
       window.addEventListener('touchend', handleDragEnd)
-      
+
       return () => {
         window.removeEventListener('mousemove', handleDragMove)
         window.removeEventListener('mouseup', handleDragEnd)
         window.removeEventListener('touchmove', handleDragMove)
         window.removeEventListener('touchend', handleDragEnd)
+        // Cancel any pending RAF on cleanup
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current)
+          rafRef.current = null
+        }
       }
     }
   }, [draggingPiece, handleDragMove, handleDragEnd])
   
-  // Simple sound effects
-  const playSound = (type) => {
-    // Using Web Audio API for simple sounds
+  // Simple sound effects (using shared AudioContext)
+  const playSound = useCallback((type) => {
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)()
+      const ctx = getAudioContext()
+      if (!ctx) return
+
+      // Resume context if suspended (required after user interaction)
+      if (ctx.state === 'suspended') {
+        ctx.resume()
+      }
+
       const oscillator = ctx.createOscillator()
       const gain = ctx.createGain()
-      
+
       oscillator.connect(gain)
       gain.connect(ctx.destination)
-      
+
       if (type === 'snap') {
         oscillator.frequency.value = 800
         gain.gain.value = 0.1
@@ -248,11 +281,20 @@ function GameScreen({ settings, onBack, onNextPuzzle }) {
     } catch (e) {
       // Audio not supported
     }
-  }
+  }, [])
   
+  // Memoized path generation to avoid recalculating on every render
+  const getMemoizedPath = useCallback((size, edges) => {
+    const key = `${size}-${edges.top}-${edges.right}-${edges.bottom}-${edges.left}`
+    if (!pathCache.current.has(key)) {
+      pathCache.current.set(key, generatePiecePath(size, size, edges))
+    }
+    return pathCache.current.get(key)
+  }, [])
+
   // Render a puzzle piece
-  const renderPiece = (piece, size, forDrag = false) => {
-    const pathData = generatePiecePath(size, size, piece.edges)
+  const renderPiece = useCallback((piece, size, forDrag = false) => {
+    const pathData = getMemoizedPath(size, piece.edges)
     const clipId = `piece-${piece.id}${forDrag ? '-drag' : ''}`
     
     // Calculate image position within piece
@@ -289,8 +331,8 @@ function GameScreen({ settings, onBack, onNextPuzzle }) {
         />
       </svg>
     )
-  }
-  
+  }, [getMemoizedPath, image, gridSize])
+
   const remainingPieces = pieces.length
   const totalPieces = gridSize * gridSize
   
@@ -353,8 +395,8 @@ function GameScreen({ settings, onBack, onNextPuzzle }) {
             
             {/* Placed pieces */}
             {Object.entries(placedPieces).map(([key, piece]) => {
-              const pathData = generatePiecePath(pieceSize, pieceSize, piece.edges)
-              
+              const pathData = getMemoizedPath(pieceSize, piece.edges)
+
               return (
                 <div
                   key={`placed-${key}`}
@@ -393,7 +435,7 @@ function GameScreen({ settings, onBack, onNextPuzzle }) {
                 )
               }
 
-              const pathData = generatePiecePath(pieceSize, pieceSize, piece.edges)
+              const pathData = getMemoizedPath(pieceSize, piece.edges)
               const trayScale = 0.85
 
               return (
@@ -424,7 +466,7 @@ function GameScreen({ settings, onBack, onNextPuzzle }) {
       
       {/* Dragging piece overlay */}
       {draggingPiece && (() => {
-        const dragPathData = generatePiecePath(pieceSize, pieceSize, draggingPiece.edges)
+        const dragPathData = getMemoizedPath(pieceSize, draggingPiece.edges)
         const dragScale = 0.95
         return (
           <div

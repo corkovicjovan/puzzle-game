@@ -789,7 +789,7 @@ body {
     opacity: 1;
   }
   100% {
-    transform: translateY(100vh) rotate(720deg);
+    transform: translateY(100dvh) rotate(720deg);
     opacity: 0;
   }
 }
@@ -797,8 +797,8 @@ body {
 /* Install Button - Top Right */
 .install-button {
   position: fixed;
-  top: 12px;
-  right: 12px;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -913,9 +913,111 @@ body {
     max-width: 500px;
     margin: 0 auto;
   }
-  
+
   .puzzle-board {
     max-width: 450px;
     max-height: 450px;
   }
+}
+
+/* Update Prompt */
+.update-prompt {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 2500;
+  animation: slideUp 0.3s ease;
+}
+
+.update-content {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 32px var(--shadow);
+  border: 2px solid var(--accent);
+}
+
+.update-icon {
+  font-size: 1.5rem;
+}
+
+.update-text {
+  flex: 1;
+}
+
+.update-text strong {
+  display: block;
+  color: var(--accent);
+}
+
+.update-text p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.update-btn {
+  background: var(--accent);
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 700;
+  color: var(--background);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.update-btn:hover {
+  transform: scale(1.05);
+}
+
+.update-dismiss {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0 8px;
+  line-height: 1;
+}
+
+.update-dismiss:hover {
+  color: var(--text);
+}
+
+/* Offline Indicator */
+.offline-indicator {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--surface);
+  padding: 12px 20px;
+  border-radius: 25px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 16px var(--shadow);
+  z-index: 1500;
+  animation: fadeIn 0.3s ease;
+  pointer-events: none;
+}
+
+.offline-dot {
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
