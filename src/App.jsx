@@ -4,26 +4,18 @@ import GameScreen from './components/GameScreen'
 import ImageCropper from './components/ImageCropper'
 import './index.css'
 
-// Sample images - replace with your AI-generated images later
-const SAMPLE_IMAGES = [
-  'https://picsum.photos/seed/puzzle1/600/600',
-  'https://picsum.photos/seed/puzzle2/600/600',
-  'https://picsum.photos/seed/puzzle3/600/600',
-  'https://picsum.photos/seed/puzzle4/600/600',
-  'https://picsum.photos/seed/puzzle5/600/600',
-  'https://picsum.photos/seed/puzzle6/600/600',
-  'https://picsum.photos/seed/puzzle7/600/600',
-  'https://picsum.photos/seed/puzzle8/600/600',
-  'https://picsum.photos/seed/puzzle9/600/600',
-  'https://picsum.photos/seed/puzzle10/600/600',
-  'https://picsum.photos/seed/puzzle11/600/600',
-  'https://picsum.photos/seed/puzzle12/600/600',
-]
+// Auto-discover all images from src/assets/puzzles/
+// Just drop images in that folder and they'll be included automatically
+const puzzleImages = import.meta.glob('./assets/puzzles/*.{png,jpg,jpeg,webp}', {
+  eager: true,
+  import: 'default',
+})
+const SAMPLE_IMAGES = Object.values(puzzleImages)
 
 function App() {
   const [screen, setScreen] = useState('home')
   const [gameSettings, setGameSettings] = useState({
-    gridSize: 3,
+    gridSize: 4,
     showHint: true,
     image: null,
   })
@@ -55,6 +47,12 @@ function App() {
     setScreen('home')
   }, [])
 
+  const nextPuzzle = useCallback(() => {
+    const randomIndex = Math.floor(Math.random() * SAMPLE_IMAGES.length)
+    const newImage = SAMPLE_IMAGES[randomIndex]
+    setGameSettings(prev => ({ ...prev, image: newImage }))
+  }, [])
+
   return (
     <div className="app">
       {screen === 'home' && (
@@ -69,6 +67,7 @@ function App() {
         <GameScreen
           settings={gameSettings}
           onBack={goHome}
+          onNextPuzzle={nextPuzzle}
         />
       )}
       {screen === 'cropper' && customImage && (

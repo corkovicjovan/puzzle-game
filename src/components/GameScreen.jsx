@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { generatePuzzleEdges, generatePiecePath, shuffleArray } from '../utils/puzzleUtils'
+import { generatePuzzleEdges, generatePiecePath, generateGridLinesPath, shuffleArray } from '../utils/puzzleUtils'
 import Confetti from './Confetti'
 
-function GameScreen({ settings, onBack }) {
+function GameScreen({ settings, onBack, onNextPuzzle }) {
   const { gridSize, showHint, image } = settings
   const [pieces, setPieces] = useState([])
   const [placedPieces, setPlacedPieces] = useState({})
@@ -12,12 +12,12 @@ function GameScreen({ settings, onBack }) {
   const [isComplete, setIsComplete] = useState(false)
   const [boardSize, setBoardSize] = useState(300)
   const [imageLoaded, setImageLoaded] = useState(false)
+  const [visibleSlots, setVisibleSlots] = useState([null, null, null, null])
   
   const boardRef = useRef(null)
   const dragOffsetRef = useRef({ x: 0, y: 0 })
   
   const pieceSize = boardSize / gridSize
-  const tabSize = pieceSize * 0.18
   
   // Generate puzzle edges once
   const puzzleEdges = useMemo(() => {
@@ -32,11 +32,29 @@ function GameScreen({ settings, onBack }) {
       col: piece.col,
       edges: piece.edges,
     }))
-    setPieces(shuffleArray(initialPieces))
+    const shuffled = shuffleArray(initialPieces)
+    setPieces(shuffled)
     setPlacedPieces({})
     setIsComplete(false)
     setImageLoaded(false)
+    // Initialize visible slots with first 4 pieces
+    setVisibleSlots(shuffled.slice(0, 4).map(p => p?.id ?? null))
   }, [puzzleEdges, image])
+
+  // Fill empty slots with random pieces from remaining pool
+  const fillEmptySlots = useCallback((currentPieces, currentSlots) => {
+    const newSlots = [...currentSlots]
+    const availablePieces = currentPieces.filter(p => !currentSlots.includes(p.id))
+
+    for (let i = 0; i < 4; i++) {
+      if (newSlots[i] === null && availablePieces.length > 0) {
+        const randomIndex = Math.floor(Math.random() * availablePieces.length)
+        newSlots[i] = availablePieces[randomIndex].id
+        availablePieces.splice(randomIndex, 1)
+      }
+    }
+    return newSlots
+  }, [])
   
   // Calculate board size based on viewport
   useEffect(() => {
@@ -155,26 +173,37 @@ function GameScreen({ settings, onBack }) {
   // Handle drag end
   const handleDragEnd = useCallback(() => {
     if (!draggingPiece) return
-    
+
     const snapPos = checkSnapPosition(dragPos.x, dragPos.y, draggingPiece)
-    
+
     if (snapPos && !placedPieces[`${snapPos.row}-${snapPos.col}`]) {
       // Place the piece!
       setPlacedPieces(prev => ({
         ...prev,
         [`${snapPos.row}-${snapPos.col}`]: draggingPiece,
       }))
-      
+
       // Remove from tray
-      setPieces(prev => prev.filter(p => p.id !== draggingPiece.id))
-      
+      const newPieces = pieces.filter(p => p.id !== draggingPiece.id)
+      setPieces(newPieces)
+
+      // Clear slot and fill with new random piece
+      setVisibleSlots(prev => {
+        const slotIndex = prev.indexOf(draggingPiece.id)
+        const newSlots = [...prev]
+        if (slotIndex !== -1) {
+          newSlots[slotIndex] = null
+        }
+        return fillEmptySlots(newPieces, newSlots)
+      })
+
       // Play success sound
       playSound('snap')
     }
-    
+
     setDraggingPiece(null)
     setHighlightCell(null)
-  }, [draggingPiece, dragPos, checkSnapPosition, placedPieces])
+  }, [draggingPiece, dragPos, checkSnapPosition, placedPieces, pieces, fillEmptySlots])
   
   // Add global event listeners for drag
   useEffect(() => {
@@ -287,27 +316,34 @@ function GameScreen({ settings, onBack }) {
             />
           )}
           
-          {/* Grid cells */}
+          {/* Puzzle-shaped grid lines */}
           <div className="puzzle-grid">
-            {Array.from({ length: gridSize * gridSize }).map((_, index) => {
-              const row = Math.floor(index / gridSize)
-              const col = index % gridSize
-              const isHighlight = highlightCell?.row === row && highlightCell?.col === col
-              const isFilled = !!placedPieces[`${row}-${col}`]
-              
-              return (
-                <div
-                  key={`cell-${row}-${col}`}
-                  className={`grid-cell ${isHighlight ? 'highlight' : ''} ${isFilled ? 'filled' : ''}`}
-                  style={{
-                    left: col * pieceSize,
-                    top: row * pieceSize,
-                    width: pieceSize,
-                    height: pieceSize,
-                  }}
-                />
-              )
-            })}
+            <svg
+              width={boardSize}
+              height={boardSize}
+              className="grid-lines"
+            >
+              <path
+                d={generateGridLinesPath(boardSize, gridSize, puzzleEdges)}
+                fill="none"
+                stroke="rgba(99, 102, 241, 0.5)"
+                strokeWidth="3"
+                strokeLinecap="round"
+              />
+            </svg>
+
+            {/* Highlight overlay for correct position */}
+            {highlightCell && (
+              <div
+                className="highlight-cell"
+                style={{
+                  left: highlightCell.col * pieceSize,
+                  top: highlightCell.row * pieceSize,
+                  width: pieceSize,
+                  height: pieceSize,
+                }}
+              />
+            )}
             
             {/* Placed pieces */}
             {Object.entries(placedPieces).map(([key, piece]) => {
@@ -330,44 +366,76 @@ function GameScreen({ settings, onBack }) {
         </div>
       </div>
       
-      {/* Piece tray */}
-      <div className="piece-tray">
-        {pieces.map((piece) => {
-          const trayPieceSize = 80
-          const pathData = generatePiecePath(trayPieceSize, trayPieceSize, piece.edges)
-          
-          return (
-            <div
-              key={piece.id}
-              className={`puzzle-piece ${draggingPiece?.id === piece.id ? 'dragging' : ''}`}
-              style={{
-                width: pathData.width,
-                height: pathData.height,
-                opacity: draggingPiece?.id === piece.id ? 0 : 1,
-              }}
-              onMouseDown={(e) => handleDragStart(e, piece)}
-              onTouchStart={(e) => handleDragStart(e, piece)}
-            >
-              {renderPiece(piece, trayPieceSize)}
-            </div>
-          )
-        })}
-      </div>
+      {/* Piece tray - 4 fixed slots */}
+      {(() => {
+        // Max piece size includes tabs on both sides: pieceSize + 2 * (pieceSize * 0.28)
+        const maxPieceSize = pieceSize * 1.56
+        const slotSize = maxPieceSize + 4 // small padding
+
+        return (
+          <div className="piece-tray" style={{ height: slotSize + 16 }}>
+            {visibleSlots.map((pieceId, slotIndex) => {
+              const piece = pieces.find(p => p.id === pieceId)
+
+              if (!piece) {
+                return (
+                  <div
+                    key={`slot-${slotIndex}`}
+                    className="piece-slot empty"
+                    style={{ width: slotSize, height: slotSize }}
+                  />
+                )
+              }
+
+              const pathData = generatePiecePath(pieceSize, pieceSize, piece.edges)
+              const trayScale = 0.85
+
+              return (
+                <div
+                  key={`slot-${slotIndex}`}
+                  className={`piece-slot ${draggingPiece?.id === piece.id ? 'dragging' : ''}`}
+                  style={{ width: slotSize, height: slotSize }}
+                >
+                  <div
+                    className="puzzle-piece"
+                    style={{
+                      width: pathData.width,
+                      height: pathData.height,
+                      opacity: draggingPiece?.id === piece.id ? 0 : 1,
+                      transform: `scale(${trayScale})`,
+                    }}
+                    onMouseDown={(e) => handleDragStart(e, piece)}
+                    onTouchStart={(e) => handleDragStart(e, piece)}
+                  >
+                    {renderPiece(piece, pieceSize)}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )
+      })()}
       
       {/* Dragging piece overlay */}
-      {draggingPiece && (
-        <div
-          className="puzzle-piece dragging"
-          style={{
-            left: dragPos.x - pieceSize / 2,
-            top: dragPos.y - pieceSize / 2,
-            width: pieceSize + tabSize * 2,
-            height: pieceSize + tabSize * 2,
-          }}
-        >
-          {renderPiece(draggingPiece, pieceSize, true)}
-        </div>
-      )}
+      {draggingPiece && (() => {
+        const dragPathData = generatePiecePath(pieceSize, pieceSize, draggingPiece.edges)
+        const dragScale = 0.95
+        return (
+          <div
+            className="puzzle-piece dragging"
+            style={{
+              left: dragPos.x - (dragPathData.width * dragScale) / 2,
+              top: dragPos.y - (dragPathData.height * dragScale) / 2,
+              width: dragPathData.width,
+              height: dragPathData.height,
+              transform: `scale(${dragScale})`,
+              transformOrigin: 'top left',
+            }}
+          >
+            {renderPiece(draggingPiece, pieceSize, true)}
+          </div>
+        )
+      })()}
       
       {/* Win modal */}
       {isComplete && (
@@ -385,18 +453,28 @@ function GameScreen({ settings, onBack }) {
                 <button
                   className="win-btn primary"
                   onClick={() => {
-                    setPieces(shuffleArray(puzzleEdges.map((p, i) => ({
+                    const shuffled = shuffleArray(puzzleEdges.map((p, i) => ({
                       id: i,
                       row: p.row,
                       col: p.col,
                       edges: p.edges,
-                    }))))
+                    })))
+                    setPieces(shuffled)
                     setPlacedPieces({})
                     setIsComplete(false)
+                    setVisibleSlots(shuffled.slice(0, 4).map(p => p?.id ?? null))
                   }}
                 >
                   Play Again
                 </button>
+                {onNextPuzzle && (
+                  <button
+                    className="win-btn success"
+                    onClick={onNextPuzzle}
+                  >
+                    Next Puzzle
+                  </button>
+                )}
               </div>
             </div>
           </div>

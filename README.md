@@ -1,11 +1,13 @@
-# 🧩 Puzzle Fun!
+# Puzzle Fun
 
-A fun, kid-friendly jigsaw puzzle game built with React + Vite. Works as a Progressive Web App (PWA) - installable on phones and tablets!
+A kid-friendly jigsaw puzzle game built with React + Vite. Works as a Progressive Web App (PWA) - installable on phones and tablets.
+
+**100% Free & Private** - No ads, no payments, no tracking. Everything runs locally on your device. No data is ever collected or sent anywhere.
 
 ## Features
 
 - **Real jigsaw shapes** - Pieces have tabs and blanks like real puzzles
-- **3 difficulty levels** - 3×3 (Easy), 4×4 (Medium), 5×5 (Hard)
+- **3 difficulty levels** - 3x3 (Easy), 4x4 (Medium), 5x5 (Hard)
 - **Hint mode** - Show faded background image as guide (toggle on/off)
 - **Custom photos** - Use your own images from device gallery
 - **Square crop** - Built-in cropper for perfect puzzle images
@@ -28,72 +30,24 @@ npm run build
 npm run preview
 ```
 
-## Adding Your AI-Generated Images
+## Adding Puzzle Images
 
-1. Put your images in `public/images/` folder
-2. Update `src/App.jsx` to reference them:
-
-```javascript
-const SAMPLE_IMAGES = [
-  '/images/puzzle1.jpg',
-  '/images/puzzle2.jpg',
-  // ... add all 100 images
-]
-```
+Drop images into `src/assets/puzzles/` folder and they'll be automatically included at build time.
 
 **Image requirements:**
-- Square aspect ratio (or they'll be cropped)
-- Recommended: 600×600px or larger
-- Formats: JPG, PNG, WebP
-
-## Deployment (Free Hosting)
-
-### Option 1: Netlify (Recommended)
-
-1. Build the project: `npm run build`
-2. Go to [netlify.com](https://netlify.com) and sign up free
-3. Drag the `dist` folder to Netlify
-4. Done! Get your URL like `your-puzzle.netlify.app`
-
-### Option 2: Vercel
-
-1. Push code to GitHub
-2. Go to [vercel.com](https://vercel.com)
-3. Import your GitHub repo
-4. Auto-deploys on every push!
-
-### Option 3: GitHub Pages
-
-```bash
-# Install gh-pages
-npm install gh-pages --save-dev
-
-# Add to package.json scripts:
-"deploy": "npm run build && gh-pages -d dist"
-
-# Deploy
-npm run deploy
-```
-
-## PWA Icons
-
-Before production deployment, generate PWA icons:
-
-1. Use your logo/icon (512×512 PNG recommended)
-2. Generate icons at [realfavicongenerator.net](https://realfavicongenerator.net)
-3. Replace files in `public/` folder:
-   - `pwa-192x192.png`
-   - `pwa-512x512.png`
-   - `apple-touch-icon.png`
+- Square aspect ratio recommended (or they'll be cropped)
+- Recommended: 600x600px or larger
+- Formats: PNG, JPG, JPEG, WebP
 
 ## Project Structure
 
 ```
 puzzle-game/
 ├── public/
-│   ├── favicon.svg
-│   └── images/        # Your puzzle images go here
+│   └── favicon.svg
 ├── src/
+│   ├── assets/
+│   │   └── puzzles/       # Puzzle images (auto-discovered)
 │   ├── components/
 │   │   ├── HomeScreen.jsx    # Settings & image selection
 │   │   ├── GameScreen.jsx    # Main puzzle gameplay
@@ -117,17 +71,17 @@ Edit CSS variables in `src/index.css`:
 
 ```css
 :root {
-  --primary: #6366f1;      /* Main purple */
-  --secondary: #f472b6;    /* Pink accent */
-  --accent: #fbbf24;       /* Yellow/gold */
-  --success: #34d399;      /* Green for correct */
-  --background: #1e1b4b;   /* Dark purple bg */
+  --primary: #3b82f6;
+  --secondary: #f472b6;
+  --accent: #fbbf24;
+  --success: #34d399;
+  --background: #1e3a5f;
 }
 ```
 
 ### Adjust Snap Sensitivity
 
-In `src/components/GameScreen.jsx`, find:
+In `src/components/GameScreen.jsx`:
 
 ```javascript
 // Very forgiving snap zone for kids (40% of piece size)
@@ -137,6 +91,48 @@ const snapThreshold = pieceSize * 0.4
 - Increase for easier snapping (0.5 = very easy)
 - Decrease for harder snapping (0.25 = precise)
 
+## Deployment
+
+### Netlify (Recommended)
+
+1. Build the project: `npm run build`
+2. Go to [netlify.com](https://netlify.com) and sign up
+3. Drag the `dist` folder to Netlify
+4. Done! Get your URL like `your-puzzle.netlify.app`
+
+### Vercel
+
+1. Push code to GitHub
+2. Go to [vercel.com](https://vercel.com)
+3. Import your GitHub repo
+4. Auto-deploys on every push
+
+### GitHub Pages
+
+```bash
+# Install gh-pages
+npm install gh-pages --save-dev
+
+# Add to package.json scripts:
+"deploy": "npm run build && gh-pages -d dist"
+
+# Deploy
+npm run deploy
+```
+
+## PWA Icons
+
+Before production deployment, generate PWA icons:
+
+1. Use your logo/icon (512x512 PNG recommended)
+2. Generate icons at [realfavicongenerator.net](https://realfavicongenerator.net)
+3. Replace files in `public/` folder:
+   - `pwa-192x192.png`
+   - `pwa-512x512.png`
+   - `apple-touch-icon.png`
+
 ## License
 
-Free to use! Made with ❤️ for kids everywhere.
+MIT License - see [LICENSE](LICENSE) file for details.
+
+Sample puzzle images were generated using Midjourney.

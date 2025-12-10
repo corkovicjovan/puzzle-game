@@ -1,7 +1,8 @@
 {
   "name": "puzzle-game",
-  "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "A kid-friendly jigsaw puzzle game built with React + Vite. Works as a PWA.",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
