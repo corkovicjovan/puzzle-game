@@ -326,7 +326,7 @@ function GameScreen({ settings, onBack, onNextPuzzle }) {
         <path
           d={pathData.path}
           fill="none"
-          stroke="rgba(255,255,255,0.3)"
+          stroke="rgba(0,0,0,0.3)"
           strokeWidth="1"
         />
       </svg>
