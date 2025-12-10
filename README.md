@@ -95,41 +95,23 @@ const snapThreshold = pieceSize * 0.4
 
 ### Netlify (Recommended)
 
-1. Build the project: `npm run build`
-2. Go to [netlify.com](https://netlify.com) and sign up
-3. Drag the `dist` folder to Netlify
-4. Done! Get your URL like `your-puzzle.netlify.app`
-
-### Vercel
-
 1. Push code to GitHub
-2. Go to [vercel.com](https://vercel.com)
-3. Import your GitHub repo
-4. Auto-deploys on every push
+2. Go to [netlify.com](https://netlify.com) → "Add new site" → "Import an existing project"
+3. Connect your GitHub repo
+4. Build settings are auto-detected (Vite)
+5. Click "Deploy"
 
-### GitHub Pages
+**Custom Domain Setup:**
+1. In Netlify: Site settings → Domain management → Add custom domain
+2. Add your subdomain (e.g., `puzzle.yourdomain.com`)
+3. At your DNS provider: Add a CNAME record pointing to your Netlify URL
+
+### Alternative: Manual Deploy
 
 ```bash
-# Install gh-pages
-npm install gh-pages --save-dev
-
-# Add to package.json scripts:
-"deploy": "npm run build && gh-pages -d dist"
-
-# Deploy
-npm run deploy
+npm run build
+# Drag the dist/ folder to Netlify
 ```
-
-## PWA Icons
-
-Before production deployment, generate PWA icons:
-
-1. Use your logo/icon (512x512 PNG recommended)
-2. Generate icons at [realfavicongenerator.net](https://realfavicongenerator.net)
-3. Replace files in `public/` folder:
-   - `pwa-192x192.png`
-   - `pwa-512x512.png`
-   - `apple-touch-icon.png`
 
 ## License
 

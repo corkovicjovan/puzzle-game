@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import HomeScreen from './components/HomeScreen'
 import GameScreen from './components/GameScreen'
 import ImageCropper from './components/ImageCropper'
+import InstallButton from './components/InstallButton'
 import './index.css'
 
 // Auto-discover all images from src/assets/puzzles/
@@ -55,6 +56,7 @@ function App() {
 
   return (
     <div className="app">
+      <InstallButton />
       {screen === 'home' && (
         <HomeScreen
           onStartGame={startGame}
