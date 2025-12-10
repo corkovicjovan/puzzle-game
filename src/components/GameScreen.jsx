@@ -60,17 +60,23 @@ function GameScreen({ settings, onBack, onNextPuzzle }) {
   useEffect(() => {
     const updateSize = () => {
       const vw = window.innerWidth
-      const vh = window.innerHeight
+      // Use visualViewport for accurate mobile height, fallback to innerHeight
+      const vh = window.visualViewport?.height || window.innerHeight
       // Leave room for header and tray
       const availableHeight = vh - 200
       const availableWidth = vw - 40
       const size = Math.min(availableWidth, availableHeight, 450)
       setBoardSize(size)
     }
-    
+
     updateSize()
     window.addEventListener('resize', updateSize)
-    return () => window.removeEventListener('resize', updateSize)
+    // Also listen to visualViewport resize for mobile browsers
+    window.visualViewport?.addEventListener('resize', updateSize)
+    return () => {
+      window.removeEventListener('resize', updateSize)
+      window.visualViewport?.removeEventListener('resize', updateSize)
+    }
   }, [])
   
   // Check for win condition
